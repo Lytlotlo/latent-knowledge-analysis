@@ -58,6 +58,6 @@ zeroed_response = generate_text_from_activations(zeroed_activations, original_pr
 amplified_response = generate_text_from_activations(amplified_activations, original_prompt)
 
 # Print Results
-print("🔹 Original Response: ", original_response)
-print("❌ Zeroed Response (Neuron 5 = 0): ", zeroed_response)
-print("✅ Amplified Response (Neuron 5 * 2): ", amplified_response)
+print("Original Response: ", original_response)
+print("Zeroed Response (Neuron 5 = 0): ", zeroed_response)
+print("Amplified Response (Neuron 5 * 2): ", amplified_response)

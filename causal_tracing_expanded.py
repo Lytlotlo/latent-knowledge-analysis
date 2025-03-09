@@ -66,6 +66,6 @@ for layer in layers_to_test:
     amplified_response = generate_text_from_activations(amplified_activations, original_prompt, layer)
 
     # Print Results
-    print("🔹 Original Response: ", original_response)
-    print("❌ Zeroed Response (Top Neurons = 0): ", zeroed_response)
-    print("✅ Amplified Response (Top Neurons * 2): ", amplified_response)
+    print("Original Response: ", original_response)
+    print("Zeroed Response (Top Neurons = 0): ", zeroed_response)
+    print("Amplified Response (Top Neurons * 2): ", amplified_response)

@@ -11,7 +11,7 @@ model.eval()  # Set model to evaluation mode
 # Get the correct number of layers in the model
 num_layers = model.config.n_layer if hasattr(model.config, "n_layer") else 12  # Defaulting to 12 if not found
 
-print(f"✅ GPT-2 Model Loaded: {model_name} with {num_layers} layers")
+print(f"GPT-2 Model Loaded: {model_name} with {num_layers} layers")
 
 # Function to get activations at a specific layer
 def get_layer_activations(prompt, layer_num):
@@ -21,7 +21,7 @@ def get_layer_activations(prompt, layer_num):
     
     # Ensure the layer exists
     if layer_num >= len(outputs.hidden_states):
-        raise ValueError(f"❌ Layer {layer_num} does not exist in this GPT-2 model (max layer = {len(outputs.hidden_states) - 1})")
+        raise ValueError(f"Layer {layer_num} does not exist in this GPT-2 model (max layer = {len(outputs.hidden_states) - 1})")
     
     return outputs.hidden_states[layer_num].squeeze(0).detach().clone()  # Clone to avoid modifying original
 
@@ -84,7 +84,7 @@ for layer in layers_to_test:
     randomized_response = generate_text_from_activations(randomized_activations, original_prompt, layer)
 
     # Print Results
-    print("🔹 Original Response: ", original_response)
-    print("❌ Zeroed Response (Top Neurons = 0): ", zeroed_response)
-    print("✅ Amplified Response (Top Neurons * 10): ", amplified_response)
-    print("🎲 Randomized Response (Noise Injection): ", randomized_response)
+    print("Original Response: ", original_response)
+    print("Zeroed Response (Top Neurons = 0): ", zeroed_response)
+    print("Amplified Response (Top Neurons * 10): ", amplified_response)
+    print("Randomized Response (Noise Injection): ", randomized_response)

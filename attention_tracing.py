@@ -57,5 +57,5 @@ for layer in layers_to_test:
     boosted_response = generate_text_from_modified_attention(original_prompt, layer, "boost")
 
     # Print Results
-    print("❌ Zeroed Attention Response (Disabled Attention): ", zeroed_response)
-    print("✅ Boosted Attention Response (Strengthened Attention): ", boosted_response)
+    print("Zeroed Attention Response (Disabled Attention): ", zeroed_response)
+    print("Boosted Attention Response (Strengthened Attention): ", boosted_response)

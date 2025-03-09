@@ -16,7 +16,7 @@ def get_layer_activations(prompt, layer_num):
     
     # Ensure the layer exists
     if layer_num >= len(outputs.hidden_states):
-        raise ValueError(f"❌ Layer {layer_num} does not exist in this GPT-2 model (max layer = {len(outputs.hidden_states) - 1})")
+        raise ValueError(f"Layer {layer_num} does not exist in this GPT-2 model (max layer = {len(outputs.hidden_states) - 1})")
     
     return outputs.hidden_states[layer_num].squeeze(0).detach().clone()  # Clone to avoid modifying original
 
@@ -52,12 +52,12 @@ layers_to_test = list(range(max(0, num_layers - 4), num_layers))  # Test last 4 
 print(f"🔍 Testing layers: {layers_to_test}")
 
 for layer in layers_to_test:
-    print(f"\n🔎 **Testing Layer {layer} by Overwriting Entire Activations**")
+    print(f"\n**Testing Layer {layer} by Overwriting Entire Activations**")
     
     # Generate responses using full-layer interventions
     zeroed_response = generate_text_from_modified_layer(original_prompt, layer, "zero")
     randomized_response = generate_text_from_modified_layer(original_prompt, layer, "noise")
 
     # Print Results
-    print("❌ Zeroed Layer Response (Full Layer = 0): ", zeroed_response)
-    print("🎲 Randomized Layer Response (Full Layer = Noise): ", randomized_response)
+    print("Zeroed Layer Response (Full Layer = 0): ", zeroed_response)
+    print("Randomized Layer Response (Full Layer = Noise): ", randomized_response)
