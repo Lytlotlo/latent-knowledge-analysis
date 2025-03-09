@@ -2,8 +2,8 @@
 
 ### **Mechanistic Interpretability Hackathon Submission**
 
-**Author:** [Your Name]  
-**Date:** [Submission Date]  
+**Author:** Letlotlo
+**Date:** 9 March 2025  
 
 ---
 
@@ -26,14 +26,16 @@ We conducted a series of careful experiments to explore this in GPT-2.
 
 ## **Files and What They Do**
 
-| Python File                     | Purpose                                                   |
-|---------------------------------|-----------------------------------------------------------|
-| `neuron_analysis.py`             | Analyze neuron activations for truth vs. falsehood        |
-| `causal_tracing_expanded.py`    | Modify individual neurons to test if factual recall changes |
-| `causal_tracing_deep.py`        | Simultaneous multi-neuron/multi-layer interventions      |
-| `causal_tracing_layer.py`       | Overwrite entire layer activations (zero/noise)           |
-| `attention_tracing.py`          | Modify attention heads to test their role in factual recall |
-| `latent_knowledge_distribution.py` | **Final visualization** of distributed factual knowledge as a 3D scatter plot |
+| Python File                          | Purpose                                                   |
+|--------------------------------------|-----------------------------------------------------------|
+| `activation_probing.py`               | Analyze activation differences in neurons (probing for fact sensitivity). |
+| `attention_tracing.py`                | Modify attention heads to assess their role in factual recall. |
+| `causal_tracing.py`                   | Basic causal tracing and activation interventions.         |
+| `causal_tracing_expanded.py`          | Expanded neuron-level interventions to amplify or zero neurons. |
+| `causal_tracing_deep.py`              | Multi-neuron and multi-layer interventions to disrupt factual recall. |
+| `causal_tracing_layer.py`             | Overwrite entire layer activations (zero and noise) to observe model robustness. |
+| `neuron_analysis.py`                  | Analyze and identify neurons that respond to truth vs. falsehood. |
+| `latent_knowledge_distribution.py`   | **Final visualization**: 3D scatter plot of top neurons involved in factual knowledge. |
 
 ---
 
