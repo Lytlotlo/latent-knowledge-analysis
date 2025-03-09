@@ -2,14 +2,14 @@
 
 ### **Mechanistic Interpretability Hackathon Submission**
 
-**Author:** Letlotlo
+**Author:** Letlotlo Mokuoa  
 **Date:** 9 March 2025  
 
 ---
 
 ## **Project Overview**
 
-This repository contains a **replication of Anthropic’s 2023 paper**, *"Discovering Latent Knowledge in Language Models Without Supervision"*.  
+This repository contains a **replication of Burns et al.'s 2022 paper**, *"Discovering Latent Knowledge in Language Models Without Supervision"*.  
 Our goal was to **reproduce and understand their core finding**: that factual knowledge in large language models (like GPT-2) is **stored in a distributed and latent way**, not in specific neurons or layers.
 
 We conducted a series of careful experiments to explore this in GPT-2.
@@ -20,7 +20,7 @@ We conducted a series of careful experiments to explore this in GPT-2.
 
 - ✅ **Factual knowledge appears distributed** — no single neuron, layer, or attention head controls factual recall.
 - ✅ **Intervening on neurons, layers, and heads** (zeroing out, amplifying, adding noise) did **not disrupt factual outputs**, confirming robustness.
-- ✅ A **3D visualization** of top fact-sensitive neurons shows that **neurons across many layers are involved in storing factual knowledge**, supporting Anthropic’s original hypothesis.
+- ✅ A **3D visualization** of top fact-sensitive neurons shows that **neurons across many layers are involved in storing factual knowledge**, supporting Burns et al.'s hypothesis.
 
 ---
 
@@ -41,15 +41,16 @@ We conducted a series of careful experiments to explore this in GPT-2.
 
 ## **Final Visualization Example**
 
-> **3D scatter plot** highlighting top 5% neurons most sensitive to factual correctness, distributed across GPT-2’s layers.
+> **3D scatter plot** highlighting the top 5% of neurons most sensitive to factual correctness, distributed across GPT-2’s layers.
 
-![3D Visualization Screenshot](path_to_screenshot)
+![3D Visualization Screenshot](latent-knowledge-analysis/3d_visual.png)
+
 
 ---
 
 ## **Conclusion of the Replication**
 
-> Our experiments **replicate Anthropic's finding** that factual knowledge in GPT-2 is **latent, distributed, and stored in superposition**.  
+> Our experiments **replicate Burns et al.'s finding** that factual knowledge in GPT-2 is **latent, distributed, and stored in superposition**.  
 > No isolated \"fact neuron\" was found, and modifying small components was insufficient to alter factual recall.  
 > This supports the view that **mechanistic interpretability must address distributed representations**.
 
@@ -57,8 +58,8 @@ We conducted a series of careful experiments to explore this in GPT-2.
 
 ## **Reference (Replicated Paper)**
 
-> Ganguli, D., et al. (2023). *Discovering Latent Knowledge in Language Models Without Supervision*. Anthropic.  
-> [https://arxiv.org/abs/2309.08128](https://arxiv.org/abs/2309.08128)
+> Burns, C., Ye, H., Klein, D., & Steinhardt, J. (2022). *Discovering Latent Knowledge in Language Models Without Supervision*. arXiv preprint arXiv:2212.03827.  
+> [https://arxiv.org/abs/2212.03827](https://arxiv.org/abs/2212.03827)
 
 ---
 
@@ -67,4 +68,3 @@ We conducted a series of careful experiments to explore this in GPT-2.
 ```bash
 pip install torch transformers matplotlib plotly
 python latent_knowledge_distribution.py
-
