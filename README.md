@@ -43,7 +43,7 @@ We conducted a series of careful experiments to explore this in GPT-2.
 
 > **3D scatter plot** highlighting the top 5% of neurons most sensitive to factual correctness, distributed across GPT-2’s layers.
 
-![3D Visualization Screenshot](latent-knowledge-analysis/3d_visual.png)
+![3D Visualization Screenshot](3d_visual.png)
 
 
 ---
