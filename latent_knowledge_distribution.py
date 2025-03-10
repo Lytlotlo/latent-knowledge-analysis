@@ -1,95 +1,119 @@
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 import numpy as np
 import plotly.graph_objects as go
+from goodfire import Client, Variant
+import random
 
-# Load GPT-2 model and tokenizer
-model_name = "gpt2"  
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name, output_hidden_states=True)
-model.eval()  # Set model to evaluation mode
+# Initialize Goodfire client
+client = Client("sk-goodfire-5V7Yyoi0-yjkFdGtTxRbpNvru_TYjZHHCIu0KP09wiMprPydYXtEgg")
+variant = Variant("meta-llama/Llama-3.3-70B-Instruct")
 
-# Define true and false prompts
-true_prompt = "The capital of France is Paris."
-false_prompt = "The capital of France is Berlin."
 
-# Tokenize inputs
-inputs_true = tokenizer(true_prompt, return_tensors="pt")
-inputs_false = tokenizer(false_prompt, return_tensors="pt")
+# Define feature concepts relevant to factual knowledge
+feature_terms = [
+    "knowledge of capitals",
+    "geography",
+    "political facts",
+    "world knowledge",
+    "reasoning about countries",
+    "city facts",
+    "country leaders",
+    "government facts"
+]
 
-# Run both prompts and extract hidden states (activations)
-with torch.no_grad():
-    outputs_true = model(**inputs_true, output_hidden_states=True)
-    outputs_false = model(**inputs_false, output_hidden_states=True)
+# Define the fact to analyze (True and False versions)
+true_prompt = [{"role": "user", "content": "The capital of France is Paris."}]
+false_prompt = [{"role": "user", "content": "The capital of France is Berlin."}]
+rag_prompt = [{"role": "user", "content": "The capital of France is Berlin. (Please check a knowledge base.)"}]
+target_answer = "Paris"
 
-# Extract hidden states (tuple of tensors, one per layer)
-hidden_states_true = outputs_true.hidden_states  
-hidden_states_false = outputs_false.hidden_states
 
-# Number of layers and neurons
-num_layers = len(hidden_states_true)
-hidden_size = hidden_states_true[0].shape[-1]  
+# Data storage for plotting
+x_labels, x_labels_idx, y_activations, z_differences, sizes, colors = [], [], [], [], [], []
 
-print(f"Model has {num_layers} layers, each with {hidden_size} neurons")
+# Process each feature concept
+for i, feature_term in enumerate(feature_terms):
+    features = client.features.search(feature_term, model=variant, top_k=1)
+    if not features:
+        print(f"Feature not found: {feature_term}")
+        continue
 
-# Average activations across sequence length for simplicity
-def average_activations(hidden_states):
-    return torch.stack([layer.mean(dim=1).squeeze(0) for layer in hidden_states])  
+    # Inspect activations for True, False, and RAG cases
+    inspector_true = client.features.inspect(true_prompt, model=variant, features=features)
+    inspector_false = client.features.inspect(false_prompt, model=variant, features=features)
+    inspector_rag = client.features.inspect(rag_prompt, model=variant, features=features)
 
-avg_true = average_activations(hidden_states_true)  
-avg_false = average_activations(hidden_states_false)  
+    # Get top feature activation values
+    true_act = inspector_true.top(k=1)[0].activation
+    false_act = inspector_false.top(k=1)[0].activation
+    rag_act = inspector_rag.top(k=1)[0].activation
 
-# Compute absolute differences for each neuron in each layer
-activation_differences = torch.abs(avg_true - avg_false).numpy()  
+    # Activation difference (truth sensitivity) and RAG dependency
+    activation_diff = abs(true_act - false_act)
+    rag_dependency = abs(rag_act - false_act)
 
-# --- 3D Visualization Section ---
+    # Model's confidence in correct answer (probability for "Paris")
+    logits = client.chat.logits(
+        messages=true_prompt,
+        model=variant,
+        filter_vocabulary=[target_answer]
+    )
+    prob = logits.logits.get(target_answer, 0.0)
 
-# Flatten data for structured 3D scatter plot
-layer_indices = []
-neuron_indices = []
-differences = []
+    # Add jitter for horizontal spacing
+    jitter = random.uniform(-0.2, 0.2)
+    x_labels_idx.append(i + jitter)  
 
-# Top 5% most active neurons
-threshold = np.percentile(activation_differences, 95)  
+    # Rescale bubble size 
+    bubble_size = 5 + 15 * prob  
 
-for layer in range(num_layers):
-    for neuron in range(hidden_size):
-        diff = activation_differences[layer][neuron]
-        if diff >= threshold:  
-            layer_indices.append(layer)  
-            neuron_indices.append(neuron)  
-            differences.append(diff)  
+    # Save for plotting
+    x_labels.append(feature_term)
+    y_activations.append(true_act)
+    z_differences.append(activation_diff)
+    sizes.append(bubble_size)
+    colors.append(rag_dependency)  
 
-# Normalize differences for size
-max_diff = max(differences)
-sizes = [15 + 30 * (d / max_diff) for d in differences]  
-
-# Structured 3D scatter plot
-# Could also do Z=layer and use color for diff if we want flat layers
+# Prepare 3D scatter plot
 fig = go.Figure(data=[go.Scatter3d(
-    x=neuron_indices,
-    y=layer_indices,
-    z=differences,  
+    x=x_labels_idx,  
+    y=y_activations,  
+    z=z_differences,  
     mode='markers',
     marker=dict(
-        size=sizes,
-        color=differences,  
-        colorscale='Viridis',
-        opacity=0.8,
-        line=dict(width=0.5, color='DarkSlateGrey')  
-    )
+        size=sizes, 
+        color=colors,  
+        colorscale='RdYlBu_r', 
+        opacity=0.7, 
+        line=dict(width=1, color='DarkSlateGrey'),  
+        colorbar=dict(title='RAG Dependency (Activation Change)')  # Color legend
+    ),
+    text=[
+        f"Feature: {label}<br>"
+        f"Activation (True): {act:.3f}<br>"
+        f"Activation Diff (T/F): {diff:.3f}<br>"
+        f"Confidence (Paris): {((size - 5)/15):.3f}<br>"
+        f"RAG Dependency: {color:.3f}"
+        for label, act, diff, size, color in zip(x_labels, y_activations, z_differences, sizes, colors)
+    ]  # Hover text for clarity
 )])
 
+
+# Final layout adjustments for readability
 fig.update_layout(
-    title='3D Visualization of Neurons Sensitive to Truth vs. Falsehood',
+    title='4D Visualization of Factual Knowledge Sensitivity and RAG Dependence (Refined)',
     scene=dict(
-        xaxis=dict(title='Neuron Index (Per Layer)', backgroundcolor="rgb(200, 200, 230)", gridcolor="white"),
-        yaxis=dict(title='Layer Index (0 = input, higher = deeper)', backgroundcolor="rgb(230, 200,230)", gridcolor="white"),
-        zaxis=dict(title='Activation Difference', backgroundcolor="rgb(230, 230,200)", gridcolor="white"),
+        xaxis_title='Feature (Concept)',
+        yaxis_title='Activation on True Statement',
+        zaxis_title='Activation Difference (Truth vs Falsehood)',
+        xaxis=dict(tickvals=list(range(len(x_labels))), ticktext=x_labels),  
     ),
-    width=1000,
-    height=700,
-    margin=dict(r=10, l=10, b=10, t=30)
+    width=1200,
+    height=800,
+    margin=dict(r=20, b=10, l=10, t=50),
+    font=dict(size=12)
 )
 
+
+# Show the interactive plot
 fig.show()
+

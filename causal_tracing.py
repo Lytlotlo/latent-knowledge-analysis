@@ -1,63 +1,54 @@
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import numpy as np
+from goodfire import Client, Variant
 
-# Load GPT-2 model and tokenizer
-model_name = "gpt2"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name, output_hidden_states=True)
-model.eval()  # Set model to evaluation mode
+client = Client("sk-goodfire-5V7Yyoi0-yjkFdGtTxRbpNvru_TYjZHHCIu0KP09wiMprPydYXtEgg")
+variant = Variant("meta-llama/Llama-3.3-70B-Instruct")
 
-# Function to get activations at a specific layer
-def get_layer_activations(prompt, layer_num):
-    inputs = tokenizer(prompt, return_tensors="pt")
-    with torch.no_grad():
-        outputs = model(**inputs, output_hidden_states=True)
-    hidden_states = outputs.hidden_states  # List of hidden states at each layer
-    return hidden_states[layer_num].squeeze(0).detach().clone()  # Clone to avoid modifying original
+# Define prompts
+test_prompt = [{"role": "user", "content": "What is the capital of France?"}]
+true_statement = [{"role": "user", "content": "The capital of France is Paris."}]
+false_statement = [{"role": "user", "content": "The capital of France is Berlin."}]
 
-# Function to generate text given activations
-def generate_text_from_activations(activations, original_prompt):
-    inputs = tokenizer(original_prompt, return_tensors="pt")
-    with torch.no_grad():
-        outputs = model(inputs["input_ids"], output_hidden_states=True)
-    
-    # Replace original activations with modified ones
-    modified_hidden_states = list(outputs.hidden_states)
-    modified_hidden_states[most_sensitive_layer] = activations  # Apply modified activations
+# Search for factual knowledge features
+knowledge_features = []
+for query in ["capital cities", "countries and capitals", "geography", "facts about France", "political geography"]:
+    knowledge_features.extend(client.features.search(query, model=variant, top_k=10))
 
-    # Pass modified activations through the model again
-    with torch.no_grad():
-        new_outputs = model(inputs["input_ids"], output_hidden_states=True)
 
-    generated_text = tokenizer.decode(new_outputs.logits.argmax(dim=-1)[0], skip_special_tokens=True)
-    return generated_text
+# Inspect activations for True statement
+inspector_true = client.features.inspect(true_statement, model=variant, features=knowledge_features)
 
-# Define test prompt
-original_prompt = "The capital of France is Paris."
+# Filter for active features
+active_features = [f for f in inspector_true.top(k=20) if f.activation > 0.1]
 
-# Identify the most sensitive layer and neuron
-most_sensitive_layer = 10  # Based on previous analysis
-most_sensitive_neuron = 5   # The neuron with highest activation difference
+# Inspect activations for False statement
+inspector_false = client.features.inspect(false_statement, model=variant, features=[f.feature for f in active_features])
 
-# Get original activations
-original_activations = get_layer_activations(original_prompt, most_sensitive_layer)
+#Compute differences
+feature_differences = {}
+for f_true, f_false in zip(inspector_true.top(k=20), inspector_false.top(k=20)):
+    diff = abs(f_true.activation - f_false.activation)
+    feature_differences[f_true.feature] = diff
 
-# Create two modified versions:
-# 1. Set Neuron 5’s activation to zero (erasing knowledge)
-zeroed_activations = original_activations.clone()
-zeroed_activations[:, most_sensitive_neuron] = 0  # Zeroing out Neuron 5
+# Select most sensitive feature
+most_sensitive_feature = max(feature_differences, key=feature_differences.get)
+print(f"🔥 Most sensitive factual feature: {most_sensitive_feature.label} with diff {feature_differences[most_sensitive_feature]:.3f}")
 
-# 2. Amplify Neuron 5’s activation (enhancing knowledge)
-amplified_activations = original_activations.clone()
-amplified_activations[:, most_sensitive_neuron] *= 2  # Amplify Neuron 5
 
-# Generate text using modified activations
-original_response = generate_text_from_activations(original_activations, original_prompt)
-zeroed_response = generate_text_from_activations(zeroed_activations, original_prompt)
-amplified_response = generate_text_from_activations(amplified_activations, original_prompt)
+#Intervene carefully (gentle adjustments)
+erased_variant = Variant("meta-llama/Llama-3.3-70B-Instruct")
+erased_variant.set(most_sensitive_feature, -0.5)  # Gentle erase
 
-# Print Results
-print("Original Response: ", original_response)
-print("Zeroed Response (Neuron 5 = 0): ", zeroed_response)
-print("Amplified Response (Neuron 5 * 2): ", amplified_response)
+amplified_variant = Variant("meta-llama/Llama-3.3-70B-Instruct")
+amplified_variant.set(most_sensitive_feature, 0.3)  # Gentle amplify
+
+
+# Get outputs
+response_original = client.chat.completions.create(messages=test_prompt, model=variant)
+response_erased = client.chat.completions.create(messages=test_prompt, model=erased_variant)
+response_amplified = client.chat.completions.create(messages=test_prompt, model=amplified_variant)
+
+
+# Print and compare
+print("\nOriginal Response:\n", response_original.choices[0].message["content"].strip())
+print("\nFeature Erased Response:\n", response_erased.choices[0].message["content"].strip())
+print("\nFeature Amplified Response:\n", response_amplified.choices[0].message["content"].strip())

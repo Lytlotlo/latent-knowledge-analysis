@@ -1,90 +1,57 @@
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import numpy as np
+from goodfire import Client, Variant
 
-# Load GPT-2 model and tokenizer
-model_name = "gpt2"  # Check if using "gpt2", "gpt2-medium", etc.
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name, output_hidden_states=True)
-model.eval()  # Set model to evaluation mode
+# Initialize Goodfire client
+client = Client("sk-goodfire-5V7Yyoi0-yjkFdGtTxRbpNvru_TYjZHHCIu0KP09wiMprPydYXtEgg")
+variant = Variant("meta-llama/Llama-3.3-70B-Instruct")
 
-# Get the correct number of layers in the model
-num_layers = model.config.n_layer if hasattr(model.config, "n_layer") else 12  # Defaulting to 12 if not found
 
-print(f"GPT-2 Model Loaded: {model_name} with {num_layers} layers")
+# Define prompts
+true_statement = [{"role": "user", "content": "The capital of France is Paris."}]
+false_statement = [{"role": "user", "content": "The capital of France is Berlin."}]
 
-# Function to get activations at a specific layer
-def get_layer_activations(prompt, layer_num):
-    inputs = tokenizer(prompt, return_tensors="pt")
-    with torch.no_grad():
-        outputs = model(**inputs, output_hidden_states=True)
-    
-    # Ensure the layer exists
-    if layer_num >= len(outputs.hidden_states):
-        raise ValueError(f"Layer {layer_num} does not exist in this GPT-2 model (max layer = {len(outputs.hidden_states) - 1})")
-    
-    return outputs.hidden_states[layer_num].squeeze(0).detach().clone()  # Clone to avoid modifying original
 
-# Function to generate text given modified activations
-def generate_text_from_activations(activations, original_prompt, layer):
-    inputs = tokenizer(original_prompt, return_tensors="pt")
-    with torch.no_grad():
-        outputs = model(inputs["input_ids"], output_hidden_states=True)
-    
-    # Replace original activations with modified ones
-    modified_hidden_states = list(outputs.hidden_states)
-    modified_hidden_states[layer] = activations  # Apply modified activations
+#  Search for factual knowledge features
+knowledge_features = []
+for query in ["capital cities", "countries and capitals", "geography", "facts about France", "political geography"]:
+    knowledge_features.extend(client.features.search(query, model=variant, top_k=10))
 
-    # Pass modified activations through the model again
-    with torch.no_grad():
-        new_outputs = model(inputs["input_ids"], output_hidden_states=True)
+#
+# Inspect activations for True and False
+inspector_true = client.features.inspect(true_statement, model=variant, features=knowledge_features)
+inspector_false = client.features.inspect(false_statement, model=variant, features=knowledge_features)
 
-    generated_text = tokenizer.decode(new_outputs.logits.argmax(dim=-1)[0], skip_special_tokens=True)
-    return generated_text
+#Compute activation differences
+feature_differences = {}
+for f_true, f_false in zip(inspector_true.top(k=50), inspector_false.top(k=50)):
+    diff = abs(f_true.activation - f_false.activation)
+    feature_differences[f_true.feature] = diff
 
-# Define test prompt
-original_prompt = "The capital of France is Paris."
 
-# Get the correct number of layers and test the last 4 layers
-layers_to_test = list(range(max(0, num_layers - 4), num_layers))  # Test the last 4 layers
+# Select top N most sensitive features
+top_n = 5  # Focused set for deep tracing
+sorted_features = sorted(feature_differences.items(), key=lambda x: x[1], reverse=True)
+top_sensitive_features = [feat for feat, _ in sorted_features[:top_n]]
 
-print(f"🔍 Testing layers: {layers_to_test}")
+print("\n Top sensitive factual features selected for deep tracing:")
+for feat, diff in sorted_features[:top_n]:
+    print(f"- {feat.label}: diff {diff:.3f}")
 
-for layer in layers_to_test:
-    print(f"\n🔎 **Testing Layer {layer} with Stronger Modifications**")
-    
-    # Get activations for the chosen layer
-    try:
-        original_activations = get_layer_activations(original_prompt, layer)
-    except ValueError as e:
-        print(e)
-        continue  # Skip this layer if it doesn't exist
-    
-    # Compute absolute differences for each neuron
-    neuron_differences = np.abs(original_activations.mean(axis=0).flatten())  # Ensure it's 1D
-    
-    # Get top 10 neurons with the highest activation differences
-    num_neurons = neuron_differences.shape[0]
-    top_neurons = np.argsort(neuron_differences)[-min(10, num_neurons):]
 
-    # Create three modified versions:
-    zeroed_activations = original_activations.clone()
-    amplified_activations = original_activations.clone()
-    randomized_activations = original_activations.clone()
+# Trace dependencies for each feature
+for idx, feature in enumerate(top_sensitive_features, start=1):
+    print(f"\n🔍 Tracing for Feature #{idx}: {feature.label}")
 
-    for neuron in top_neurons:
-        zeroed_activations[:, neuron] = 0  # Zeroing out top neurons
-        amplified_activations[:, neuron] *= 10  # Extreme amplification
-        randomized_activations[:, neuron] = torch.randn_like(original_activations[:, neuron]) * 10  # Random noise
+    # Find upstream features (what activates this feature)
+    upstream = client.features.neighbors(feature, model=variant, top_k=10)
+    print("  ↑ Upstream features (activating this feature):")
+    for f in upstream:
+        print(f"    - {f.label}")
 
-    # Generate text using modified activations
-    original_response = generate_text_from_activations(original_activations, original_prompt, layer)
-    zeroed_response = generate_text_from_activations(zeroed_activations, original_prompt, layer)
-    amplified_response = generate_text_from_activations(amplified_activations, original_prompt, layer)
-    randomized_response = generate_text_from_activations(randomized_activations, original_prompt, layer)
+    # Find downstream features (what this feature activates)
+    downstream = client.features.neighbors(feature, model=variant, top_k=10)  
+    print("  ↓ Downstream features (activated by this feature):")
+    for f in downstream:
+        print(f"    - {f.label}")
 
-    # Print Results
-    print("Original Response: ", original_response)
-    print("Zeroed Response (Top Neurons = 0): ", zeroed_response)
-    print("Amplified Response (Top Neurons * 10): ", amplified_response)
-    print("Randomized Response (Noise Injection): ", randomized_response)
+
+
