@@ -1,4 +1,4 @@
-# Latent Knowledge Analysis via Feature-Based Causal Tracing (Goodfire/Ember)
+# Latent Knowledge Analysis via Feature-Based Causal Tracing
 
 ### Mechanistic Interpretability Hackathon Submission
 
@@ -11,6 +11,8 @@
 
 This repository contains a feature-based causal tracing analysis of factual knowledge in large language models, using Goodfire's Ember API.  
 We explore how facts like "Paris is the capital of France" are encoded, which features are responsible, and how manipulating these features affects model behavior.  
+
+This project is inspired by Burns et al.'s (2022) *Discovering Latent Knowledge in Language Models Without Supervision*, which explored how factual knowledge is stored in large language models. While the original paper focused on neuron-level interventions in GPT-2, this work extends the investigation to **feature-level interventions**, using modern tools for **interpretable feature manipulation**.
 
 Our goal is to map the internal "feature graph" of factual knowledge, moving beyond traditional neuron-level analysis to interpretable feature-level interventions.
 
@@ -61,9 +63,7 @@ These files replace older neuron-based approaches and focus entirely on feature-
 
 ---
 
-## Final Visualization Example
-
-> **3D scatter plot** highlighting the top feature-based activations related to factual knowledge, showing how features encode and differentiate factual correctness.
+## Final Visualization
 
 ### Graph Explanation:
 
@@ -79,7 +79,6 @@ The color shows how much the feature's activation changes when using retrieval-a
 
 Our analysis demonstrates that factual knowledge is embedded in distributed feature networks, not isolated units.  
 By using Goodfire's feature inspection and manipulation, we achieve interpretable causal tracing of knowledge.  
-This work extends mechanistic interpretability into actionable, human-readable feature spaces — a key step for AI safety and alignment.
 
 ---
 
@@ -98,4 +97,5 @@ Goodfire (Ember API): *Interpretable Feature-based Language Model Analysis and C
 ### Install dependencies:
 ```bash
 pip install goodfire plotly matplotlib
+
 
